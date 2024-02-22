@@ -1,0 +1,223 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fetch API Demo</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+  <style>
+    table {
+        border-collapse: collapse;
+        width: 520px;
+    }
+    th, td {
+        border-bottom: 1px solid black;
+        border: 1px solid black;
+        padding: 8px;
+        text-align: left;
+    }
+    
+    .search_container {
+        max-width: 520px;
+        align-items: center;
+        display: flex;
+        flex-direction: column;
+    }
+    .container {
+        width: 100%;
+    }
+    .user {
+        width: 100%;
+    }
+    .search {
+        outline: none;
+    }
+    #name, #email, #role, #action {  
+        width: 25%;
+    }
+    #icons {
+        padding-left: 10px;
+    }
+    a {
+        padding-left: 5px;
+        text-decoration: none;
+        color: rgb(63, 62, 62);
+    }
+    #trash {
+        color: rgb(233, 79, 79);
+    }
+    button {
+        border-radius: 3px;
+        border: none;
+        height: 25px;
+        background-color: rgb(239, 78, 105);
+        color: white;
+        cursor: pointer;
+    }
+    .delete_pagination {
+        width: 520px;
+        margin-top: 20px;
+        display: flex;
+        justify-content: space-between;
+        flex-direction: row;
+    }
+    .pagination a {
+        font-size: 12px;
+        color: white;
+        padding: 10px 10px;
+        border-radius: 50%;
+        background-color: rgb(52, 140, 218);
+    }
+    .hidden {
+        display: none;
+    }
+    .pagination {
+        display: flex;
+        list-style-type: none;
+        padding: 0;
+    }
+    .pagination li {
+        background-color: rgb(55, 138, 254);
+        border-radius: 50%;
+        padding: 5px 10px;
+        margin-right: 5px;
+        cursor: pointer;
+        color: white;
+    }
+    .pagination li.active {
+        background-color: white;
+        border:1px solid blue;
+        font-weight: bold;
+        color: blue;
+    }
+  
+  </style>
+</head>
+<body>
+    <div class="search_container">
+        <div class="search">
+            <input type="text" id ="search" placeholder="Search by Name, Email or Role" style="width: 510px;margin-bottom: 20px;">
+        </div>
+        <div class="container"></div>
+
+        <div class="delete_pagination">
+            <div id="delete_btn"> <button onclick="deleteSelected()">Delete Selected</button></div>
+            <div id="content">
+                <!-- Content will be dynamically generated here based on the current page -->
+            </div>
+            <ul class="pagination" id="pagination"></ul>
+        </div>
+    </div>
+
+    <script>
+        let currentPage = 1;
+        const itemsPerPage = 10; // Change this value as needed
+
+        async function getUsers() {
+            try {
+                let res = await fetch("https://geektrust.s3-ap-southeast-1.amazonaws.com/adminui-problem/members.json");
+                return await res.json();
+            } catch (error) {
+                console.log(error);
+            }
+        }
+
+        async function renderUsers(page) {
+            let users = await getUsers();
+            let startIndex = (page - 1) * itemsPerPage;
+            let endIndex = startIndex + itemsPerPage;
+            let paginatedUsers = users.slice(startIndex, endIndex);
+
+            let html = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th><i class="fa-regular fa-square"></i></th>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Role</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
+
+            paginatedUsers.forEach((user, index) => {
+                html += `
+                    <tr class="user" id="edit">
+                        <td><input type="checkbox" class="check" value="${user.id}"></td>
+                        <td>${user.name}</td>
+                        <td>${user.email}</td>
+                        <td>${user.role}</td>
+                        <td id="icons">
+                            <a href="#" onclick="updateRow(this)"><i class="fa-solid fa-pen-to-square"></i></a>
+                            <a href="#" onclick="deleteRow(this)"><i class="fa-solid fa-trash" id="trash"></i></a>
+                        </td>
+                    </tr>`;
+            });
+
+            html += `
+                    </tbody>
+                </table>`;
+
+            let container = document.querySelector('.container');
+            container.innerHTML = html;
+        }
+
+        async function deleteSelected() {
+            let checkboxes = document.querySelectorAll('.check:checked');
+
+            checkboxes.forEach(checkbox => {
+                var row = checkbox.parentElement.parentElement;
+                row.remove();
+            });
+        }
+
+        async function updateRow(link) {
+            let row = link.closest('tr');
+            let cells = row.cells;
+            let newName = prompt("Enter new name for " + cells[1].textContent + ":");
+            let newEmail = prompt("Enter new email for " + cells[2].textContent + ":");
+            let newRole = prompt("Enter new role for " + cells[3].textContent + ":");
+
+            cells[1].textContent = newName;
+            cells[2].textContent = newEmail;
+            cells[3].textContent = newRole;
+        }
+
+        async function deleteRow(link) {
+            let row = link.closest('tr');
+            row.remove();
+        }
+
+        function setPage(page) {
+            currentPage = page;
+            renderUsers(currentPage);
+            updatePagination();
+        }
+
+        async function updatePagination() {
+            let users = await getUsers();
+            let totalPages = Math.ceil(users.length / itemsPerPage);
+
+            let pagination = document.getElementById('pagination');
+            pagination.innerHTML = '';
+
+            for (let i = 1; i <= totalPages; i++) {
+                let li = document.createElement('li');
+                li.textContent = i;
+                li.addEventListener('click', () => setPage(i));
+                if (i === currentPage) {
+                    li.classList.add
+                    li.classList.add('active');
+                }
+                pagination.appendChild(li);
+            }
+        }
+
+        renderUsers(currentPage);
+        updatePagination();
+    </script>
+</body>
+</html>
